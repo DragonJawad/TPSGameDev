@@ -82,7 +82,7 @@ public class CharacterMovement : MonoBehaviour {
 	}
 	
 	void GroundCheck() {
-		Ray ray = new Ray(transform.position + Vector3.up * 0.1f, -Vector3.up);
+		Ray ray = new Ray(transform.position + Vector3.up * 0.5f, -Vector3.up);
 		
 		RaycastHit[] hits = Physics.RaycastAll(ray, 0.5f);
 		rayHitComparer = new RayHitComparer();
@@ -91,7 +91,7 @@ public class CharacterMovement : MonoBehaviour {
 		
 		// If player is not jumping (or not able to jump or something)
 		if(velocity.y < jumpPower * 0.5f) {
-			// onGround = false; // Will use later~
+			onGround = false;
 			// Assume in the air and falling...
 			GetComponent<Rigidbody>().useGravity = true;
 			
