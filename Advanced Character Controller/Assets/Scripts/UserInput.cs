@@ -27,18 +27,17 @@ public class UserInput : MonoBehaviour {
 
 	void LateUpdate() {
 		aim = Input.GetMouseButton(1);
-
+	
 		aimingWeight = Mathf.MoveTowards(aimingWeight, (aim)? 1.0f : 0.0f, Time.deltaTime * 5);
 
-		Vector3 normalState = new Vector3(0,0,-2f);
-		Vector3 aimingState = new Vector3(0,0,-0.5f);
-
+		Vector3 normalState = new Vector3(0,0,0f);
+		Vector3 aimingState = new Vector3(0.5f,0,-0.5f);
 		Vector3 pos = Vector3.Lerp (normalState, aimingState, aimingWeight);
 
 		cam.transform.localPosition = pos;
 	}
-
-    void FixedUpdate() {
+    
+	void FixedUpdate() {
         float horizontal = Input.GetAxis("Horizontal");
         float vertical = Input.GetAxis("Vertical");
 
