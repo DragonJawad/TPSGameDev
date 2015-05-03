@@ -20,6 +20,7 @@ public class Pivot : FollowTarget {
 	
 	// Update is called once per frame
 	virtual protected void Update () {
+		// Will only run in Edit mode
 		if(!Application.isPlaying) {
 			if(target != null) {
 				Follow (999);

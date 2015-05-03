@@ -24,7 +24,7 @@ public class FreeCameraLook : Pivot {
 	protected override void Awake() {
 		base.Awake();
 
-		Screen.lockCursor = lockCursor;
+		//Screen.lockCursor = lockCursor;
 
 		cam = GetComponentInChildren<Camera>().transform;
 
@@ -38,12 +38,12 @@ public class FreeCameraLook : Pivot {
 		HandleRotationMovement();
 
 		if(lockCursor && Input.GetMouseButtonUp(0)) {
-			Screen.lockCursor = lockCursor;
+			//Screen.lockCursor = lockCursor;
 		}
 	}
 
 	void onDisable() {
-		Screen.lockCursor = false;
+		//Screen.lockCursor = false;
 	}
 
 	protected override void Follow(float deltaTime) {
@@ -55,7 +55,7 @@ public class FreeCameraLook : Pivot {
 		float y = Input.GetAxis("Mouse Y");
 
 		if(turnsmoothing > 0) {
-			smoothX = Mathf.SmoothDamp(smoothX, x, ref smoothXvelocity, turnsmoothing);
+			smoothX = Mathf.SmoothDamp(smoothX,	x, ref smoothXvelocity, turnsmoothing);
 			smoothY = Mathf.SmoothDamp(smoothY, y, ref smoothYvelocity, turnsmoothing);
 		}
 		else {
@@ -66,9 +66,9 @@ public class FreeCameraLook : Pivot {
 		lookAngle += smoothX * turnSpeed;
 		transform.rotation = Quaternion.Euler (0f, lookAngle, 0);
 
-		tiltAngle -= smoothY * turnSpeed;
+		tiltAngle += smoothY * turnSpeed;
 		tiltAngle = Mathf.Clamp (tiltAngle, - tiltMin, tiltMax);
 
-		pivot.localRotation = Quaternion.Euler (tiltAngle, 0, 0);
+		pivot.localRotation = Quaternion.Euler (0, 0, tiltAngle);
 	}
 }
