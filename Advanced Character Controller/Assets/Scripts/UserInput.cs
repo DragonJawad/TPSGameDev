@@ -9,12 +9,27 @@ public class UserInput : MonoBehaviour {
     private Transform cam; // Camera
     private Vector3 camForward;
     private Vector3 move;
-
-	//Camera
-	// float cameraForward;
+	
 	public bool aim;
 	public float aimingWeight;
-	//float cameraSpeedOffset
+
+	public bool lookInCameraDirection;
+	Vector3 lookPos;
+
+	Animator anim;
+
+	WeaponManager weaponManager;
+
+	// Ik stuff - specific to character/rig
+	[SerializeField] public IK ik;
+	[System.Serializable] public class IK {
+		public Transform spine;
+		public float aimingZ = 213.64f;
+		public float aimingX = -65.93f;
+		public float aimingY = 20.1f;
+		public float point = 30f;
+		public bool DebugAim;
+	}
 
     void Start()
     {
@@ -23,39 +38,111 @@ public class UserInput : MonoBehaviour {
         }
 
         charMove = GetComponent<CharacterMovement>();
+
+		anim = GetComponent<Animator>();
+
+		weaponManager = GetComponent<WeaponManager> ();
     }
 
-	void LateUpdate() {
-		aim = Input.GetMouseButton(1);
-	
+	void Update() {
+		// Only get aim from mouse button if not debugging
+		if(!ik.DebugAim)
+			// Get whether or not the player wants to aim
+			aim = Input.GetMouseButton(1);
+
+		if(aim) {
+			// If the weapon can't fire more than once at a time...
+			if(!weaponManager.ActiveWeapon.CanBurst) {
+				// Fire only once per click
+				if(Input.GetMouseButtonDown(0)) {
+					anim.SetTrigger("Fire");
+					weaponManager.FireActiveWeapon();
+				}
+			}
+			else {
+				// Fire as long as mouse button is held down
+				if(Input.GetMouseButton(0)) {
+					anim.SetTrigger("Fire");
+					weaponManager.FireActiveWeapon();
+				}
+			}
+		}
+
+		// If mouse scrollwheel is actually getting moved...
+		if(Input.GetAxis("Mouse ScrollWheel") != 0) {
+			// If mousewheel is scrolled down...
+			if(Input.GetAxis("Mouse ScrollWheel") < -0.1f) {
+				weaponManager.ChangeWeapon(false);
+			}
+			
+			// If mousewheel is scrolled up...
+			if(Input.GetAxis("Mouse ScrollWheel") > 0.1f) {
+				weaponManager.ChangeWeapon(true);
+			}
+		}
+		
+		// For ease of testing without a mouse, do the same thing with a key...
+		if(Input.GetKeyDown(KeyCode.E)) {
+			Debug.Log("Manually changing weapons...");
+			weaponManager.ChangeWeapon(true);
+		}
+	}
+
+	void LateUpdate() {	
 		aimingWeight = Mathf.MoveTowards(aimingWeight, (aim)? 1.0f : 0.0f, Time.deltaTime * 5);
 
-		Vector3 normalState = new Vector3(0,0,0f);
-		Vector3 aimingState = new Vector3(0.5f,0,-0.5f);
+		Vector3 normalState = new Vector3(0,0,0);
+		Vector3 aimingState = new Vector3(0.5f,-0.5f,-0.9f);
 		Vector3 pos = Vector3.Lerp (normalState, aimingState, aimingWeight);
 
 		cam.transform.localPosition = pos;
+
+		if(aim) {
+			Vector3 eulerAngleOffset = Vector3.zero;
+
+			eulerAngleOffset = new Vector3(ik.aimingX, ik.aimingY, ik.aimingZ);
+
+			Ray ray = new Ray(cam.position, cam.forward);
+
+			Vector3 lookPosition = ray.GetPoint(ik.point);
+
+			ik.spine.LookAt(lookPosition);
+			ik.spine.Rotate (eulerAngleOffset, Space.Self);
+		}
 	}
     
 	void FixedUpdate() {
         float horizontal = Input.GetAxis("Horizontal");
         float vertical = Input.GetAxis("Vertical");
 
-        if (cam != null) // if there is a camera
-        {
-			// Take the forward vector of the camera (from its transform) and
-			// eliminate the y component
-			// scale the camera forward with the mask (1, 0, 1) to eliminate y and normalize it
-            camForward = Vector3.Scale(cam.forward, new Vector3(1, 0, 1)).normalized;
+		if(!aim) {
+	        if (cam != null) // if there is a camera
+	        {
+				// Take the forward vector of the camera (from its transform) and
+				// eliminate the y component
+				// scale the camera forward with the mask (1, 0, 1) to eliminate y and normalize it
+	            camForward = Vector3.Scale(cam.forward, new Vector3(1, 0, 1)).normalized;
 
-            // Move towards where camera is looking
-            move = vertical * camForward + horizontal * cam.right;
-        }
-        else {
-            // Just in case there is no camera in the scene...
-			// use the global forward (+z) amd right (+x)
-            move = vertical * Vector3.forward + horizontal * Vector3.right;
-        }
+	            // Move towards where camera is looking
+	            move = vertical * camForward + horizontal * cam.right;
+	        }
+	        else {
+	            // Just in case there is no camera in the scene...
+				// use the global forward (+z) amd right (+x)
+	            move = vertical * Vector3.forward + horizontal * Vector3.right;
+	        }
+		}
+		else {
+			move = Vector3.zero;
+
+			Vector3 dir = lookPos - transform.position;
+			dir.y = 0;
+
+			transform.rotation = Quaternion.Slerp (transform.rotation, Quaternion.LookRotation(dir), 20*Time.deltaTime);
+
+			anim.SetFloat("Forward", vertical);
+			anim.SetFloat("Turn", horizontal);
+		}
 
         if (move.magnitude > 1)
             move.Normalize();
@@ -86,8 +173,11 @@ public class UserInput : MonoBehaviour {
             }
         }
 
+		lookPos = lookInCameraDirection && cam != null ? transform.position + cam.forward * 100
+			: transform.position + transform.forward*100;
+
         move *= walkMultiplier;
 
-        charMove.Move(move);
+        charMove.Move(move, aim, lookPos);
     }
 }

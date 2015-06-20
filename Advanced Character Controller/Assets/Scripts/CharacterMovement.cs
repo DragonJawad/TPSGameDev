@@ -20,21 +20,34 @@ public class CharacterMovement : MonoBehaviour {
 
 	IComparer rayHitComparer;
 
+	float autoTurnThreshold = 10;
+	float autoTurnSpeed = 20;	
+	bool aim;			
+	Vector3 currentLookPos;
+
+	public Transform LeftHand;
+
 	// Use this for initialization
 	void Start () {
 		SetupAnimator();
 	}
 	
-	public void Move(Vector3 move) {
+	public void Move(Vector3 move, bool aim, Vector3 lookPos) {
 		if(move.magnitude > 1)
 			move.Normalize();
 		
 		this.moveInput = move;
+		this.aim = aim;
+		this.currentLookPos = lookPos;
 		
 		velocity = GetComponent<Rigidbody>().velocity;
 		
 		ConvertMoveInput();
-		ApplyExtraTurnRotation();
+
+		if(!aim) {
+			TurnTowardsCameraForward();
+			ApplyExtraTurnRotation();
+		}
 		GroundCheck();
 		UpdateAnimator();
 	}
@@ -50,6 +63,8 @@ public class CharacterMovement : MonoBehaviour {
 				break; // May have more animators, but only want the first animator
 			}
 		}
+
+		LeftHand = anim.GetBoneTransform (HumanBodyBones.LeftHand);
 	}
 	
 	void OnAnimatorMove() {
@@ -64,16 +79,25 @@ public class CharacterMovement : MonoBehaviour {
 	
 	void ConvertMoveInput() {
 		Vector3 localMove = transform.InverseTransformDirection(moveInput);
-		
-		turnAmount = Mathf.Atan2(localMove.x, localMove.z);
-		forwardAmount = localMove.z;
+
+		if(!aim) {
+			turnAmount = Mathf.Atan2(localMove.x, localMove.z);
+			forwardAmount = localMove.z;
+		}
+		else {
+			turnAmount = 0;
+			forwardAmount = 0;
+		}
 	}
 	
 	void UpdateAnimator() {
 		anim.applyRootMotion = true;
-		
-		anim.SetFloat("Forward", forwardAmount, 0.1f, Time.deltaTime);
-		anim.SetFloat("Turn", turnAmount, 0.1f, Time.deltaTime);
+
+		if (!aim) {
+			anim.SetFloat ("Forward", forwardAmount, 0.1f, Time.deltaTime);
+			anim.SetFloat ("Turn", turnAmount, 0.1f, Time.deltaTime);
+		}
+		anim.SetBool("Aim", aim);
 	}
 	
 	void ApplyExtraTurnRotation() {
@@ -108,6 +132,18 @@ public class CharacterMovement : MonoBehaviour {
 					
 					break;
 				}
+			}
+		}
+	}
+
+	void TurnTowardsCameraForward() {
+		if(Mathf.Abs(forwardAmount) < .01f) {
+			Vector3 lookDelta = transform.InverseTransformDirection(currentLookPos - transform.position);
+
+			float lookAngle = Mathf.Atan2(lookDelta.x, lookDelta.z) * Mathf.Rad2Deg;
+
+			if(Mathf.Abs (lookAngle) > autoTurnThreshold) {
+				turnAmount += lookAngle * autoTurnSpeed * .001f;
 			}
 		}
 	}
