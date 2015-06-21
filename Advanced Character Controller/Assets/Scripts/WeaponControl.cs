@@ -66,7 +66,11 @@ public class WeaponControl : MonoBehaviour {
 					curAmmo--;
 					bulletPart.Emit (1);
 					audioSource.Play ();
-					//	weaponAnim.SetTrigger("Fire");
+
+					// Rifle doesn't have an animation, so if pistol, do animation
+					if(weaponType == WeaponManager.WeaponType.Pistol)
+						weaponAnim.SetTrigger("Fire");
+
 					fireBullet = false;
 				}
 

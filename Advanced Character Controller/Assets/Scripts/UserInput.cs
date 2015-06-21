@@ -20,6 +20,12 @@ public class UserInput : MonoBehaviour {
 
 	WeaponManager weaponManager;
 
+	public bool debugShoot;
+	WeaponManager.WeaponType weaponType;
+
+	CapsuleCollider col;
+	float startHeight; 
+
 	// Ik stuff - specific to character/rig
 	[SerializeField] public IK ik;
 	[System.Serializable] public class IK {
@@ -42,26 +48,71 @@ public class UserInput : MonoBehaviour {
 		anim = GetComponent<Animator>();
 
 		weaponManager = GetComponent<WeaponManager> ();
+
+		col = GetComponent<CapsuleCollider> ();
+		startHeight = col.height;
     }
 
+	void CorrectIK() {
+		weaponType = weaponManager.weaponType;
+
+		if (!ik.DebugAim) {
+			switch(weaponType) {
+			case WeaponManager.WeaponType.Pistol:
+				ik.aimingZ = 221.4f;
+				ik.aimingX = -71.5f;
+				ik.aimingY = 20.6f;
+				break;
+			case WeaponManager.WeaponType.Rifle:
+				ik.aimingZ = 212.19f;
+				ik.aimingX = -66.1f;
+				ik.aimingY = 14.1f;
+				break;
+			}
+		}
+	}
+
+	void AdditionalInput() {
+		if (anim.GetFloat ("Forward") > 0.5f) {
+			if (Input.GetButtonDown ("Crouch")) {
+				anim.SetTrigger ("Vault");
+			}
+		}
+	}
+
+	void HandleCurves() {
+		float sizeCurve = anim.GetFloat ("ColliderSize");
+		float newYcenter = 0.3f;
+
+		float lerpCenter = Mathf.Lerp (1, newYcenter, sizeCurve);
+
+		col.center = new Vector3 (0, lerpCenter, 0);
+
+		col.height = Mathf.Lerp (startHeight, 0.5f, sizeCurve);
+	}
+
 	void Update() {
+		CorrectIK ();
+
 		// Only get aim from mouse button if not debugging
 		if(!ik.DebugAim)
 			// Get whether or not the player wants to aim
 			aim = Input.GetMouseButton(1);
 
+		weaponManager.aim = aim;
+
 		if(aim) {
 			// If the weapon can't fire more than once at a time...
 			if(!weaponManager.ActiveWeapon.CanBurst) {
 				// Fire only once per click
-				if(Input.GetMouseButtonDown(0)) {
+				if(Input.GetMouseButtonDown(0) || debugShoot) {
 					anim.SetTrigger("Fire");
 					weaponManager.FireActiveWeapon();
 				}
 			}
 			else {
 				// Fire as long as mouse button is held down
-				if(Input.GetMouseButton(0)) {
+				if(Input.GetMouseButton(0) || debugShoot) {
 					anim.SetTrigger("Fire");
 					weaponManager.FireActiveWeapon();
 				}
@@ -86,6 +137,9 @@ public class UserInput : MonoBehaviour {
 			Debug.Log("Manually changing weapons...");
 			weaponManager.ChangeWeapon(true);
 		}
+
+		AdditionalInput ();
+		HandleCurves ();
 	}
 
 	void LateUpdate() {	

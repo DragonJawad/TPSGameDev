@@ -8,6 +8,8 @@ public class WeaponManager : MonoBehaviour {
 	public WeaponControl ActiveWeapon;
 	int weaponNumber = 0; // active weapon's number
 
+	public bool aim;
+
 	public enum WeaponType {
 		Pistol,
 		Rifle
@@ -17,27 +19,12 @@ public class WeaponManager : MonoBehaviour {
 
 	Animator anim; // of the player
 
-	public IKTargetPos ikTargetPos;
-	[System.Serializable] public class IKTargetPos {
-		[Header("Targets")]
-		public Transform HandPlacement;
-		public Transform ElbowPlacement;
-
-		[Header("Elbow Positions")]
-		public Vector3 elbowPistolPos = new Vector3(-2.30f, 0.9f, 2.78f);
-		public Vector3 elbowRiflePos = new Vector3(-2.30f, 0.9f, 2.78f);
-
-		public bool DebugIK;
-	}
+	float IKweight;
 
 	void Start () {
 		// Assuming player starts with a weapon, get that weapon
 		ActiveWeapon = WeaponList [weaponNumber].GetComponent<WeaponControl> ();
-		ikTargetPos.HandPlacement = ActiveWeapon.HandPosition.transform;
-		ikTargetPos.ElbowPlacement = new GameObject ().transform;
 		ActiveWeapon.equip = true;
-
-		ikTargetPos.ElbowPlacement.parent = transform;
 
 		anim = GetComponent<Animator>();
 
@@ -47,24 +34,31 @@ public class WeaponManager : MonoBehaviour {
 	}
 
 	void Update () {
+		IKweight = Mathf.MoveTowards (IKweight, (aim) ? 1.0f : 0.0f, Time.deltaTime * 5); 
+
 		ActiveWeapon = WeaponList [weaponNumber].GetComponent<WeaponControl> ();
-		ikTargetPos.HandPlacement = ActiveWeapon.HandPosition.transform;
 		ActiveWeapon.equip = true;
 
-		if (!ikTargetPos.DebugIK) {
-			switch(ActiveWeapon.weaponType) {
-				case WeaponType.Pistol:
-					anim.SetInteger("Weapon", 0);
-					ikTargetPos.ElbowPlacement.localPosition = ikTargetPos.elbowPistolPos;
+		weaponType = ActiveWeapon.weaponType;
 
-					break;
-				case WeaponType.Rifle:
-					anim.SetInteger("Weapon", 1);
-					ikTargetPos.ElbowPlacement.localPosition = ikTargetPos.elbowRiflePos;
-
-					break;
-			}
+		switch (weaponType) {
+		case WeaponType.Pistol:
+			anim.SetInteger ("Weapon", 0);
+			break;
+		case WeaponType.Rifle:
+			anim.SetInteger("Weapon", 1);
+			break;
 		}
+	}
+
+	void OnAnimatorIK() {
+		anim.SetIKPositionWeight (AvatarIKGoal.LeftHand, IKweight);
+		anim.SetIKRotationWeight (AvatarIKGoal.LeftHand, IKweight);
+
+		Vector3 pos = ActiveWeapon.HandPosition.transform.TransformPoint (Vector3.zero);
+
+		anim.SetIKPosition (AvatarIKGoal.LeftHand, ActiveWeapon.HandPosition.transform.position);
+		anim.SetIKRotation (AvatarIKGoal.LeftHand, ActiveWeapon.HandPosition.transform.rotation);
 	}
 
 	public void FireActiveWeapon() {

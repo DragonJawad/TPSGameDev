@@ -25,10 +25,19 @@ public class CharacterMovement : MonoBehaviour {
 	bool aim;			
 	Vector3 currentLookPos;
 
-	public Transform LeftHand;
+	Rigidbody rigidbody;
+
+	float lastAirTime;
+	Collider col;
+	public PhysicMaterial highFriction;
+	public PhysicMaterial lowFriction;
 
 	// Use this for initialization
 	void Start () {
+		anim = GetComponentInChildren<Animator> ();
+		rigidbody = GetComponent<Rigidbody> ();
+		col = GetComponent<Collider> ();
+
 		SetupAnimator();
 	}
 	
@@ -40,7 +49,7 @@ public class CharacterMovement : MonoBehaviour {
 		this.aim = aim;
 		this.currentLookPos = lookPos;
 		
-		velocity = GetComponent<Rigidbody>().velocity;
+		velocity = rigidbody.velocity;
 		
 		ConvertMoveInput();
 
@@ -49,6 +58,12 @@ public class CharacterMovement : MonoBehaviour {
 			ApplyExtraTurnRotation();
 		}
 		GroundCheck();
+		SetFriction ();
+		if (onGround) {
+			HandleGroundVelocities ();
+		} else {
+			HandleAirborneVelocities();
+		}
 		UpdateAnimator();
 	}
 	
@@ -63,8 +78,6 @@ public class CharacterMovement : MonoBehaviour {
 				break; // May have more animators, but only want the first animator
 			}
 		}
-
-		LeftHand = anim.GetBoneTransform (HumanBodyBones.LeftHand);
 	}
 	
 	void OnAnimatorMove() {
@@ -72,8 +85,8 @@ public class CharacterMovement : MonoBehaviour {
 			// Change in position - ie velocity - for this frame
 			Vector3 v = (anim.deltaPosition * moveSpeedMultiplier)/Time.deltaTime;
 			
-			v.y = GetComponent<Rigidbody>().velocity.y; // Don't want to mess with this
-			GetComponent<Rigidbody>().velocity = v;
+			v.y = rigidbody.velocity.y; // Don't want to mess with this
+			rigidbody.velocity = v;
 		}
 	}
 	
@@ -98,6 +111,8 @@ public class CharacterMovement : MonoBehaviour {
 			anim.SetFloat ("Turn", turnAmount, 0.1f, Time.deltaTime);
 		}
 		anim.SetBool("Aim", aim);
+
+		anim.SetBool ("OnGround", onGround);
 	}
 	
 	void ApplyExtraTurnRotation() {
@@ -117,22 +132,26 @@ public class CharacterMovement : MonoBehaviour {
 		if(velocity.y < jumpPower * 0.5f) {
 			onGround = false;
 			// Assume in the air and falling...
-			GetComponent<Rigidbody>().useGravity = true;
+			rigidbody.useGravity = true;
 			
 			foreach(var hit in hits) {
 				if(!hit.collider.isTrigger) {
 					// If haven't hit any hits that is a collider, stick to the ground
 					if(velocity.y <= 0) {
 						// Change rigidbody position to be at the hit point
-						GetComponent<Rigidbody>().position = Vector3.MoveTowards(GetComponent<Rigidbody>().position, hit.point, Time.deltaTime*5);
+						rigidbody.position = Vector3.MoveTowards(rigidbody.position, hit.point, Time.deltaTime*5);
 					}
 					
 					onGround = true;
-					GetComponent<Rigidbody>().useGravity = false;
+					rigidbody.useGravity = false;
 					
 					break;
 				}
 			}
+		}
+
+		if (!onGround) {
+			lastAirTime = Time.time;
 		}
 	}
 
@@ -146,6 +165,43 @@ public class CharacterMovement : MonoBehaviour {
 				turnAmount += lookAngle * autoTurnSpeed * .001f;
 			}
 		}
+	}
+
+	void SetFriction() {
+		if (onGround) {
+			if (moveInput.magnitude == 0) {
+				// No sliding when no movement
+				col.material = highFriction;
+			} else {
+				col.material = lowFriction;
+			}
+		} else {
+			// If in air, want low friction as well
+			col.material = lowFriction;
+		}
+	}
+
+	// Helps with no unintentional sliding
+	void HandleGroundVelocities() {
+		velocity.y = 0;
+
+		// If no movement..
+		if (moveInput.magnitude == 0) {
+			velocity.x = 0;
+			velocity.z = 0;
+		}
+	}
+
+	void HandleAirborneVelocities() {
+		// Only small changes to trajectory
+		Vector3 airMove = new Vector3 (moveInput.x * 6, velocity.y, moveInput.z * 6);
+		velocity = Vector3.Lerp (velocity, airMove, Time.deltaTime * 2);
+
+		rigidbody.useGravity = true;
+
+		Vector3 extraGravityForce = (Physics.gravity * 2);
+
+		rigidbody.AddForce (extraGravityForce);
 	}
 	
 	class RayHitComparer: IComparer {

@@ -24,7 +24,12 @@ public class FreeCameraLook : Pivot {
 	protected override void Awake() {
 		base.Awake();
 
-		//Screen.lockCursor = lockCursor;
+		Screen.lockCursor = lockCursor;
+
+		if (lockCursor) {
+			Cursor.lockState = CursorLockMode.Locked;
+			Cursor.visible = false; 
+		}
 
 		cam = GetComponentInChildren<Camera>().transform;
 
@@ -38,12 +43,13 @@ public class FreeCameraLook : Pivot {
 		HandleRotationMovement();
 
 		if(lockCursor && Input.GetMouseButtonUp(0)) {
-			//Screen.lockCursor = lockCursor;
+			Screen.lockCursor = lockCursor;
 		}
 	}
 
 	void onDisable() {
-		//Screen.lockCursor = false;
+		Cursor.lockState = CursorLockMode.None;
+		Cursor.visible = true; 
 	}
 
 	protected override void Follow(float deltaTime) {
